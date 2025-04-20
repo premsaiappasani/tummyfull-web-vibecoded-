@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Booking Verification</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background-color: #f0f0f0;
+            margin: 0;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1, h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            flex: 1;
+            margin: 0 10px;
+        }
+        .stat-item h3 {
+            margin: 0 0 5px 0;
+            color: #555;
+            font-size: 1em;
+        }
+        .stat-item p {
+            margin: 0;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        button {
+            background-color: #28a745; /* Green for verify */
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s ease-in-out;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+
+        /* Scanner specific styles */
+        .scanner-container {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            text-align: center;
+        }
+        #reader {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .scanner-controls {
+            margin-top: 15px;
+        }
+        .scanner-controls button {
+            margin: 0 5px;
+            background-color: #007bff; /* Blue for scanner buttons */
+        }
+        .scanner-controls button:hover {
+            background-color: #0056b3;
+        }
+        #qr-shaded-region { /* html5-qrcode specific */
+            border-color: #007bff !important; /* Change scanner border color */
+        }
+
+
+        #verificationResult {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            text-align: left;
+            min-height: 50px; /* Give it some initial height */
+            transition: border-color 0.3s ease-in-out, background-color 0.3s ease-in-out; /* Smooth transition for highlight */
+        }
+        #verificationResult p {
+            margin: 0 0 10px 0;
+        }
+        #verificationResult p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Style for redeemed highlight */
+        #verificationResult.redeemed-highlight {
+            border-color: #ffc107; /* Example: Yellow border */
+            background-color: #fffbe6; /* Example: Light yellow background */
+        }
+
+
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+        .toast {
+            padding: 15px;
+            border-radius: 5px;
+            color: white;
+            margin-bottom: 10px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            min-width: 200px;
+            text-align: center;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        .toast.success {
+            background-color: #28a745; /* Green */
+        }
+        .toast.error {
+            background-color: #dc3545; /* Red */
+        }
+        .toast.info {
+            background-color: #17a2b8; /* Blue/Cyan for info */
+        }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Admin Dashboard</h1>
+
+    <h2>Today's Meal Statistics</h2>
+    <div class="stats">
+        <div class="stat-item">
+            <h3>Total Bookings</h3>
+            <p id="totalBookings">-</p>
+        </div>
+        <div class="stat-item">
+            <h3>Redeemed</h3>
+            <p id="redeemedBookings">-</p>
+        </div>
+    </div>
+
+    <h2>Verify Booking</h2>
+
+    <div class="scanner-container">
+        <h3>Scan QR Code</h3>
+        <div id="reader"></div> <div class="scanner-controls">
+        <button id="startScannerButton">Start Scanner</button>
+        <button id="stopScannerButton" style="display: none;">Stop Scanner</button> </div>
+        <p style="margin-top: 10px; color: #666; font-size: 0.9em;">Or manually enter email below:</p>
+    </div>
+
+
+    <form id="verifyBookingForm">
+        <div class="form-group">
+            <label for="employeeEmailInput">Employee Email:</label>
+            <input type="email" id="employeeEmailInput" required placeholder="Enter employee email or scan QR">
+        </div>
+        <button type="submit">Verify Booking</button>
+    </form>
+
+    <div id="verificationResult">
+        <p>Verification result will appear here...</p>
+    </div>
+
+</div>
+
+<div class="toast-container">
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.4/dist/html5-qrcode.min.js"></script>
+
+<script>
+    const totalBookingsSpan = document.getElementById('totalBookings');
+    const redeemedBookingsSpan = document.getElementById('redeemedBookings');
+    const employeeEmailInput = document.getElementById('employeeEmailInput');
+    const verifyBookingForm = document.getElementById('verifyBookingForm');
+    const verificationResultDiv = document.getElementById('verificationResult');
+    const toastContainer = document.querySelector('.toast-container');
+
+    // Add references for scanner elements and scanner instance
+    const scannerContainer = document.querySelector('.scanner-container');
+    const readerDiv = document.getElementById('reader');
+    const startScannerButton = document.getElementById('startScannerButton');
+    const stopScannerButton = document.getElementById('stopScannerButton');
+
+    let html5QrcodeScanner = null;
+
+
+    // Function to fetch and display statistics
+    async function fetchAndDisplayStats() {
+        try {
+            const totalResponse = await fetch('/api/bookings/admin/stats/today/total');
+            const redeemedResponse = await fetch('/api/bookings/admin/stats/today/redeemed');
+
+            if (totalResponse.ok) {
+                const totalCount = await totalResponse.json();
+                totalBookingsSpan.textContent = totalCount;
+            } else {
+                totalBookingsSpan.textContent = 'Error';
+                console.error('Failed to fetch total stats:', totalResponse.status, totalResponse.statusText);
+            }
+
+            if (redeemedResponse.ok) {
+                const redeemedCount = await redeemedResponse.json();
+                redeemedBookingsSpan.textContent = redeemedCount;
+            } else {
+                redeemedBookingsSpan.textContent = 'Error';
+                console.error('Failed to fetch redeemed stats:', redeemedResponse.status, redeemedResponse.statusText);
+            }
+
+        } catch (error) {
+            console.error('Network error fetching stats:', error);
+            totalBookingsSpan.textContent = 'Err';
+            redeemedBookingsSpan.textContent = 'Err';
+        }
+    }
+
+    // Function to display toast messages
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.classList.add('toast', type);
+        toast.textContent = message;
+        toastContainer.appendChild(toast);
+
+        // Show the toast
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 100);
+
+        // Hide and remove the toast after a few seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            toast.addEventListener('transitionend', () => {
+                toastContainer.removeChild(toast);
+            });
+        }, 5000); // Increased duration to 5 seconds
+    }
+
+
+    // Function to start the QR scanner
+    function startScanner() {
+        if (html5QrcodeScanner === null) {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader",
+                { fps: 10, qrbox: {width: 250, height: 250} },
+                false
+            );
+        }
+
+        // Clear any previous result in the reader div
+        readerDiv.innerHTML = ''; // Clear potential error messages from previous attempts
+
+        html5QrcodeScanner.render(onScanSuccess, onScanError);
+
+        startScannerButton.style.display = 'none';
+        stopScannerButton.style.display = 'inline-block';
+    }
+
+    // Function to stop the QR scanner
+    function stopScanner() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.clear().then(() => {
+                console.log("QR code scanner stopped.");
+                startScannerButton.style.display = 'inline-block';
+                stopScannerButton.style.display = 'none';
+                readerDiv.innerHTML = ''; // Clear the reader area after stopping
+            }).catch((error) => {
+                console.error("Failed to stop QR code scanner.", error);
+                // Handle errors during stop if necessary
+                startScannerButton.style.display = 'inline-block';
+                stopScannerButton.style.display = 'none';
+            });
+        }
+        html5QrcodeScanner = null; // Set scanner instance to null after clearing
+    }
+
+    // Callback function executed when a QR code is successfully scanned
+    function onScanSuccess(decodedText, decodedResult) {
+        console.log(`QR Code detected: ${decodedText}`);
+
+        // Stop the scanner after a successful scan
+        stopScanner();
+
+        // --- Parse the scanned string to extract email ---
+        // Expected format: email=value_&_bookingId=value_&_employeeId=value
+        const emailMatch = decodedText.match(/email=([^&_]+)/);
+
+        let extractedEmail = '';
+        if (emailMatch && emailMatch[1]) {
+            extractedEmail = emailMatch[1];
+            console.log(`Extracted Email: ${extractedEmail}`);
+        } else {
+            console.warn("Could not extract email from scanned content.");
+            showToast("Scanned content format unexpected.", 'error');
+            verificationResultDiv.innerHTML = `<p>Scanned content format unexpected or email not found.</p><p>Raw: ${decodedText}</p>`;
+            // Optionally set input value to raw content for manual attempt
+            employeeEmailInput.value = decodedText;
+            return; // Stop processing if email not found
+        }
+
+        // --- Populate the email input field and trigger verification ---
+        employeeEmailInput.value = extractedEmail;
+
+        // Trigger the form submission programmatically
+        verifyBookingForm.dispatchEvent(new Event('submit'));
+
+        // Optionally clear the scanner area if needed (clear is called in stopScanner)
+    }
+
+    // Callback function executed when there is a scanning error (e.g., no QR code found)
+    function onScanError(error) {
+        // This is called continuously if no QR code is detected.
+        // You can display errors if needed, but often it's too noisy.
+        // console.warn(`QR Scan Error: ${error}`);
+    }
+
+
+    // Add event listeners to the scanner control buttons
+    startScannerButton.addEventListener('click', startScanner);
+    stopScannerButton.addEventListener('click', stopScanner);
+
+
+    // Event listener for the verification form submission (handles both manual and scanned input)
+    verifyBookingForm.addEventListener('submit', async function(event) {
+        event.preventDefault(); // Prevent default form submission
+
+        // --- Reset UI state for new verification ---
+        verificationResultDiv.innerHTML = '<p>Verifying...</p>'; // Show loading indicator
+        verificationResultDiv.classList.remove('redeemed-highlight'); // Remove highlight class
+        showToast('Verifying...', 'info'); // Show processing toast
+
+
+        const email = employeeEmailInput.value.trim(); // Get email value
+
+        if (!email) {
+            verificationResultDiv.innerHTML = '<p>Please enter employee email or scan QR.</p>'; // Updated message
+            showToast('Please enter employee email or scan QR.', 'error'); // Updated message
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/bookings/admin/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: email })
+            });
+
+            const result = await response.json();
+            console.log('Verification API response:', response.status, result);
+
+            // Clear previous result content
+            verificationResultDiv.innerHTML = '';
+
+
+            // Display result based on status
+            switch (response.status) {
+                case 200: // Success (Just redeemed)
+                    showToast(result.message || 'Verification Successful!', 'success');
+                    verificationResultDiv.innerHTML = `
+                            <p><strong>Status:</strong> ${result.status}</p>
+                            <p>${result.message || 'Booking successfully redeemed.'}</p>
+                            <p><strong>Booking ID:</strong> ${result.bookingDetails.id}</p>
+                            <p><strong>Employee ID:</strong> ${result.bookingDetails.employeeId}</p>
+                            <p><strong>Booking Type:</strong> ${result.bookingDetails.bookingType}</p>
+                            <p><strong>Expires At:</strong> ${new Date(result.bookingDetails.expiryTime).toLocaleString()}</p>
+                            <p><strong>Redeemed:</strong> ${result.bookingDetails.redeemed ? 'Yes' : 'No'}</p>
+                        `;
+                    // Highlight only if successfully redeemed (which it is at this status)
+                    if (result.bookingDetails && result.bookingDetails.redeemed) {
+                        verificationResultDiv.classList.add('redeemed-highlight'); // Add highlight class
+                    }
+                    fetchAndDisplayStats(); // Refresh stats after successful redemption
+                    break;
+                case 404: // Not Found (Employee or Booking)
+                    // The backend message will indicate if it was employee or booking not found
+                    showToast(result.message || 'Employee or booking not found.', 'error');
+                    verificationResultDiv.innerHTML = `<p><strong>Status:</strong> ${result.status}</p><p>${result.message || 'Employee or booking not found.'}</p>`;
+                    break;
+                case 400: // Bad Request (Expired, Already Redeemed, Invalid Content)
+                    const errorMessage = result.message || 'Verification failed.';
+                    showToast(errorMessage, 'error');
+                    verificationResultDiv.innerHTML = `<p><strong>Status:</strong> ${result.status}</p><p>${errorMessage}</p>`;
+                    // If the booking details were returned (e.g., for ALREADY_REDEEMED), display them
+                    if (result.bookingDetails) {
+                        verificationResultDiv.innerHTML += `
+                                <p><strong>Booking ID:</strong> ${result.bookingDetails.id}</p>
+                                <p><strong>Employee ID:</strong> ${result.bookingDetails.employeeId}</p>
+                                <p><strong>Booking Type:</strong> ${result.bookingDetails.bookingType}</p>
+                                <p><strong>Expires At:</strong> ${new Date(result.bookingDetails.expiryTime).toLocaleString()}</p>
+                                <p><strong>Redeemed:</strong> ${result.bookingDetails.redeemed ? 'Yes' : 'No'}</p>
+                             `;
+                        // Highlight if booking details are returned AND it's marked as redeemed
+                        if (result.bookingDetails.redeemed) {
+                            verificationResultDiv.classList.add('redeemed-highlight'); // Add highlight class
+                        }
+                    }
+
+                    if (result.status === 'ALREADY_REDEEMED') {
+                        fetchAndDisplayStats(); // Refresh stats
+                    }
+                    break;
+                default: // Other errors
+                    showToast('An unexpected error occurred during verification.', 'error');
+                    verificationResultDiv.innerHTML = `<p>An unexpected error occurred.</p>`;
+                    console.error('Unexpected verification response status:', response.status);
+                    break;
+            }
+
+
+        } catch (error) {
+            showToast('Network error during verification.', 'error');
+            verificationResultDiv.innerHTML = `<p>Network error during verification.</p>`;
+            console.error('Network error during verification:', error);
+        } finally {
+            // Optionally clear the input field after processing
+            // employeeEmailInput.value = '';
+        }
+    });
+
+
+    // Fetch and display stats when the page loads
+    fetchAndDisplayStats();
+
+</script>
+</body>
+</html>
